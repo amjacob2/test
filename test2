@@ -1,0 +1,68 @@
+class QuizQuestion < Question
+  has_many :quiz_question_choices, class_name: 'QuizQuestionChoice', foreign_key: 'question_id', inverse_of: false, dependent: :nullify
+
+  def complete(response)
+    isvalid_msg = isvalid(response)
+    html = ''
+    if isvalid_msg != 'valid'
+      html += '<span style="color:red;">' + isvalid_msg + '</span><br>'
+    end
+    html += '<b>' + txt + '</b><br />'
+    html += 'Question Type: ' + type + '<br />'
+    html += 'Question Weight: ' + weight.to_s + '<br />'
+    if quiz_question_choices
+      quiz_question_choices.each do |choices|
+        html += '<input type="checkbox" name="response[question_' + id.to_s + '][]" value="' + choices.id.to_s + '"> '
+        html += choices.txt + '<br /> '
+      end
+      html += '<br />'
+    end
+    html.html_safe
+  end
+
+  def view_completed_question(response)
+    isvalid_msg = isvalid(response)
+    html = ''
+    if isvalid_msg != 'valid'
+      html += '<span style="color:red;">' + isvalid_msg + '</span><br>'
+    end
+    html += '<b>' + txt + '</b><br />'
+    html += 'Question Type: ' + type + '<br />'
+    html += 'Question Weight: ' + weight.to_s + '<br />'
+    if quiz_question_choices
+      quiz_question_choices.each do |choices|
+        if choices.iscorrect?
+          html += '<b>'
+        end
+        if response.answer && response.answer.include?(choices.id.to_s)
+          html += '<u>'
+        end
+        html += choices.txt
+        if response.answer && response.answer.include?(choices.id.to_s)
+          html += '</u>'
+        end
+        if choices.iscorrect?
+          html += '</b>'
+        end
+        html += '<br />'
+      end
+      html += '<br />'
+    end
+    html.html_safe
+  end
+
+  def isvalid(response)
+    @valid = 'valid'
+    @valid = 'Please make sure all questions have text' if txt == ''
+    @correct_count = 0
+    response.each do |key, value|
+      if value.nil? || value.empty?
+        @valid = 'Please make sure every question has a response'
+        return @valid
+      end
+      @correct_count += 1 if quiz_question_choices.find_by(id: value)&.iscorrect?
+    end
+    @valid = 'Please select a correct answer for all questions' if @correct_count.zero?
+    @valid
+  end
+end
